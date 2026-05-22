@@ -1,0 +1,1130 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="theme-color" content="#0a0a0f">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta http-equiv="Content-Security-Policy"
+      content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://fonts.googleapis.com https://fonts.gstatic.com">
+<title>BatteryGuard</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --surface2: #1a1a26;
+    --border: #2a2a3f;
+    --accent: #00e5a0;
+    --accent2: #ff5f57;
+    --accent3: #ffd60a;
+    --text: #e8e8f0;
+    --muted: #6b6b8a;
+    --radius: 16px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Syne', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+    position: relative;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    top: -30%;
+    left: -20%;
+    width: 70vw;
+    height: 70vw;
+    background: radial-gradient(circle, rgba(0,229,160,0.06) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  body::after {
+    content: '';
+    position: fixed;
+    bottom: -20%;
+    right: -20%;
+    width: 60vw;
+    height: 60vw;
+    background: radial-gradient(circle, rgba(255,95,87,0.05) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 20px 16px 100px;
+    position: relative;
+    z-index: 1;
+  }
+
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 0 24px;
+  }
+
+  .logo { font-size: 20px; font-weight: 800; letter-spacing: -0.5px; }
+  .logo span { color: var(--accent); }
+
+  .status-dot {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    background: var(--surface);
+    padding: 6px 12px;
+    border-radius: 50px;
+    border: 1px solid var(--border);
+  }
+
+  .dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--muted);
+    transition: all 0.3s;
+  }
+
+  .dot.active {
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent);
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  .battery-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    padding: 28px 24px;
+    margin-bottom: 16px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .battery-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    opacity: 0.5;
+  }
+
+  .battery-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+
+  .battery-main {
+    display: flex;
+    align-items: flex-end;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  .battery-pct {
+    font-size: 72px;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -4px;
+    background: linear-gradient(135deg, var(--text), var(--accent));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    transition: all 0.5s;
+  }
+
+  .battery-icon-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    align-items: flex-start;
+    padding-bottom: 8px;
+  }
+
+  .battery-status-text { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--muted); }
+
+  .charging-tag {
+    background: rgba(0,229,160,0.15);
+    color: var(--accent);
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    border: 1px solid rgba(0,229,160,0.3);
+    display: none;
+  }
+
+  .charging-tag.visible { display: block; }
+
+  .batt-bar-container {
+    position: relative;
+    height: 10px;
+    background: var(--surface2);
+    border-radius: 50px;
+    overflow: visible;
+    margin-bottom: 8px;
+  }
+
+  .batt-bar-fill {
+    height: 100%;
+    border-radius: 50px;
+    background: linear-gradient(90deg, var(--accent2), var(--accent3), var(--accent));
+    transition: width 1s cubic-bezier(0.4,0,0.2,1);
+    position: relative;
+  }
+
+  .batt-bar-glow {
+    position: absolute;
+    right: 0; top: 50%;
+    transform: translateY(-50%);
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: var(--accent);
+    filter: blur(8px);
+    opacity: 0.6;
+  }
+
+  .threshold-marker {
+    position: absolute;
+    top: -4px; bottom: -4px;
+    width: 2px;
+    background: var(--accent3);
+    border-radius: 2px;
+    transition: left 0.3s;
+  }
+
+  .threshold-marker::after {
+    content: attr(data-label);
+    position: absolute;
+    top: -18px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    color: var(--accent3);
+    white-space: nowrap;
+  }
+
+  .batt-bar-labels {
+    display: flex;
+    justify-content: space-between;
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+  }
+
+  .alert-banner {
+    background: rgba(255,95,87,0.12);
+    border: 1px solid rgba(255,95,87,0.3);
+    border-radius: 12px;
+    padding: 12px 16px;
+    align-items: center;
+    gap: 10px;
+    margin-top: 16px;
+    display: none;
+  }
+
+  .alert-banner.show { display: flex; }
+  .alert-banner.deferred { background: rgba(255,214,10,0.1); border-color: rgba(255,214,10,0.3); }
+  .alert-banner-icon { font-size: 18px; }
+  .alert-banner-text { font-size: 13px; line-height: 1.4; }
+  .alert-banner-text strong { display: block; font-size: 12px; font-weight: 700; margin-bottom: 2px; }
+
+  .section-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 12px;
+  }
+
+  .section-title {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .slider-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 4px;
+  }
+
+  .slider-label { font-size: 13px; color: var(--muted); width: 110px; flex-shrink: 0; }
+
+  .slider-value {
+    font-family: 'DM Mono', monospace;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--accent);
+    width: 40px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  input[type=range] {
+    -webkit-appearance: none;
+    flex: 1;
+    height: 4px;
+    background: var(--surface2);
+    border-radius: 50px;
+    outline: none;
+  }
+
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    box-shadow: 0 0 10px rgba(0,229,160,0.4);
+    transition: transform 0.15s;
+  }
+
+  input[type=range]:active::-webkit-slider-thumb { transform: scale(1.3); }
+
+  .time-row { display: flex; align-items: center; gap: 10px; }
+  .time-row .divider { color: var(--muted); font-family: 'DM Mono', monospace; font-size: 13px; }
+
+  .time-group { display: flex; flex-direction: column; gap: 4px; flex: 1; }
+
+  .time-group label {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 1.5px;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  input[type=time] {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 18px;
+    padding: 10px 12px;
+    width: 100%;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  input[type=time]:focus { border-color: var(--accent); }
+  input[type=time]::-webkit-calendar-picker-indicator { filter: invert(0.5); }
+
+  .toggle-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .toggle-row:last-child { margin-bottom: 0; }
+  .toggle-info { display: flex; flex-direction: column; gap: 2px; }
+  .toggle-name { font-size: 14px; font-weight: 600; }
+  .toggle-desc { font-size: 11px; color: var(--muted); }
+
+  .toggle {
+    width: 48px; height: 26px;
+    background: var(--surface2);
+    border-radius: 50px;
+    position: relative;
+    cursor: pointer;
+    transition: background 0.3s;
+    border: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .toggle.on { background: var(--accent); border-color: var(--accent); }
+
+  .toggle::after {
+    content: '';
+    position: absolute;
+    top: 3px; left: 3px;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: var(--bg);
+    transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
+  }
+
+  .toggle.on::after { transform: translateX(22px); background: #fff; }
+
+  .days-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+
+  .day-btn {
+    aspect-ratio: 1;
+    border-radius: 8px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 500;
+  }
+
+  .day-btn.active {
+    background: rgba(0,229,160,0.15);
+    border-color: var(--accent);
+    color: var(--accent);
+    font-weight: 700;
+  }
+
+  .sound-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+
+  .sound-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    padding: 10px 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .sound-btn.active { background: rgba(0,229,160,0.1); border-color: var(--accent); color: var(--accent); }
+  .sound-btn .icon { font-size: 14px; }
+
+  .custom-file-btn {
+    grid-column: 1 / -1;
+    background: var(--surface2);
+    border: 1px dashed var(--border);
+    border-radius: 10px;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    padding: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .custom-file-btn.has-file { border-color: var(--accent); color: var(--accent); background: rgba(0,229,160,0.05); }
+  input[type=file] { display: none; }
+
+  .test-btn {
+    width: 100%;
+    background: transparent;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 12px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 8px;
+  }
+
+  .test-btn:active { transform: scale(0.97); }
+
+  .main-toggle-btn {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--accent);
+    color: #000;
+    font-family: 'Syne', sans-serif;
+    font-size: 14px;
+    font-weight: 800;
+    padding: 16px 40px;
+    border-radius: 50px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s;
+    letter-spacing: 0.5px;
+    box-shadow: 0 0 30px rgba(0,229,160,0.4);
+    z-index: 100;
+    white-space: nowrap;
+  }
+
+  .main-toggle-btn.off {
+    background: var(--surface);
+    color: var(--muted);
+    border: 1px solid var(--border);
+    box-shadow: none;
+  }
+
+  .main-toggle-btn:active { transform: translateX(-50%) scale(0.95); }
+
+  .no-support {
+    background: rgba(255,95,87,0.1);
+    border: 1px solid rgba(255,95,87,0.3);
+    border-radius: 12px;
+    padding: 16px;
+    font-size: 13px;
+    line-height: 1.6;
+    color: #ff9090;
+    margin-bottom: 16px;
+    display: none;
+  }
+
+  .pending-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: rgba(255,214,10,0.1);
+    border: 1px solid rgba(255,214,10,0.3);
+    color: var(--accent3);
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    margin-top: 10px;
+  }
+
+  /* Badge de fonte de dados */
+  .source-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    margin-left: 8px;
+    vertical-align: middle;
+  }
+  .source-badge.native {
+    background: rgba(0,229,160,0.15);
+    color: var(--accent);
+    border: 1px solid rgba(0,229,160,0.3);
+  }
+  .source-badge.web {
+    background: rgba(255,214,10,0.1);
+    color: var(--accent3);
+    border: 1px solid rgba(255,214,10,0.3);
+  }
+
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .section-card, .battery-card { animation: slideUp 0.5s ease both; }
+  .section-card:nth-child(1) { animation-delay: 0.05s; }
+  .section-card:nth-child(2) { animation-delay: 0.1s; }
+  .section-card:nth-child(3) { animation-delay: 0.15s; }
+  .section-card:nth-child(4) { animation-delay: 0.2s; }
+
+  @keyframes flash {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  .alert-flash { animation: flash 0.5s ease 3; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <div class="logo">Battery<span>Guard</span></div>
+    <div class="status-dot">
+      <div class="dot" id="statusDot"></div>
+      <span id="statusText">inactivo</span>
+    </div>
+  </header>
+
+  <div class="no-support" id="noSupport">
+    ⚠️ Não foi possível ler a bateria. Certifica-te de que o app está instalado como APK via Capacitor.
+  </div>
+
+  <!-- BATTERY CARD -->
+  <div class="battery-card">
+    <div class="battery-label">
+      ⚡ bateria actual
+      <span class="source-badge" id="sourceBadge"></span>
+    </div>
+    <div class="battery-main">
+      <div class="battery-pct" id="battPct">--%</div>
+      <div class="battery-icon-wrap">
+        <div class="battery-status-text" id="battStatusText">A carregar dados...</div>
+        <div class="charging-tag" id="chargingTag">⚡ A CARREGAR</div>
+      </div>
+    </div>
+
+    <div class="batt-bar-container">
+      <div class="batt-bar-fill" id="battBar" style="width:0%">
+        <div class="batt-bar-glow"></div>
+      </div>
+      <div class="threshold-marker" id="thresholdMarker" data-label="alerta"></div>
+    </div>
+    <div class="batt-bar-labels"><span>0%</span><span>50%</span><span>100%</span></div>
+
+    <div class="alert-banner" id="alertBanner">
+      <span class="alert-banner-icon">🔔</span>
+      <div class="alert-banner-text">
+        <strong id="alertBannerTitle">Bateria Fraca!</strong>
+        <span id="alertBannerDesc">Conecta o carregador agora.</span>
+      </div>
+    </div>
+
+    <div id="pendingAlert"></div>
+  </div>
+
+  <!-- THRESHOLD -->
+  <div class="section-card">
+    <div class="section-title">🔋 nível de alerta</div>
+    <div class="slider-row">
+      <span class="slider-label">Percentagem</span>
+      <input type="range" id="thresholdSlider" min="5" max="50" value="20">
+      <span class="slider-value" id="thresholdVal">20%</span>
+    </div>
+  </div>
+
+  <!-- HORÁRIO SILENCIOSO -->
+  <div class="section-card">
+    <div class="section-title">🌙 horário silencioso</div>
+    <div class="toggle-row">
+      <div class="toggle-info">
+        <span class="toggle-name">Activar horário silencioso</span>
+        <span class="toggle-desc">Adia alertas fora do período activo</span>
+      </div>
+      <div class="toggle on" id="quietToggle" onclick="toggleQuiet()"></div>
+    </div>
+    <div class="time-row" id="quietTimes">
+      <div class="time-group">
+        <label>início silêncio</label>
+        <input type="time" id="quietStart" value="00:00">
+      </div>
+      <div class="divider">→</div>
+      <div class="time-group">
+        <label>fim silêncio</label>
+        <input type="time" id="quietEnd" value="06:00">
+      </div>
+    </div>
+  </div>
+
+  <!-- DIAS -->
+  <div class="section-card">
+    <div class="section-title">📅 dias activos</div>
+    <div class="days-grid" id="daysGrid">
+      <button class="day-btn active" data-day="0">Dom</button>
+      <button class="day-btn active" data-day="1">Seg</button>
+      <button class="day-btn active" data-day="2">Ter</button>
+      <button class="day-btn active" data-day="3">Qua</button>
+      <button class="day-btn active" data-day="4">Qui</button>
+      <button class="day-btn active" data-day="5">Sex</button>
+      <button class="day-btn active" data-day="6">Sáb</button>
+    </div>
+  </div>
+
+  <!-- SOM -->
+  <div class="section-card">
+    <div class="section-title">🔊 som e volume</div>
+    <div class="sound-grid" id="soundGrid">
+      <button class="sound-btn active" data-sound="beep"><span class="icon">📢</span> Bip simples</button>
+      <button class="sound-btn" data-sound="alarm"><span class="icon">🔔</span> Alarme</button>
+      <button class="sound-btn" data-sound="urgent"><span class="icon">🚨</span> Urgente</button>
+      <button class="sound-btn" data-sound="gentle"><span class="icon">🎵</span> Suave</button>
+      <label class="custom-file-btn" id="customFileLabel">
+        <span>📁</span> <span id="customFileName">Ficheiro personalizado</span>
+        <input type="file" id="customFile" accept="audio/*" onchange="loadCustomSound(this)">
+      </label>
+    </div>
+    <div class="slider-row">
+      <span class="slider-label">Volume</span>
+      <input type="range" id="volumeSlider" min="0" max="100" value="80">
+      <span class="slider-value" id="volumeVal">80%</span>
+    </div>
+    <div class="slider-row" style="margin-top:12px">
+      <span class="slider-label">Repetições</span>
+      <input type="range" id="repeatSlider" min="1" max="5" value="3">
+      <span class="slider-value" id="repeatVal">3×</span>
+    </div>
+    <button class="test-btn" onclick="testSound()">▶ Testar Som</button>
+  </div>
+</div>
+
+<button class="main-toggle-btn off" id="mainBtn" onclick="toggleMonitor()">
+  ▶ INICIAR MONITORIZAÇÃO
+</button>
+
+<!-- Capacitor runtime (injectado automaticamente pelo build, mas importado aqui para dev) -->
+<script>
+// ========================
+// CAPACITOR BATTERY BRIDGE
+// ========================
+// Tenta usar o plugin nativo Capacitor; cai para Battery Web API se falhar.
+
+const BatteryBridge = (() => {
+  let _listener = null;   // callback(pct, charging)
+  let _interval = null;
+  let _mode = 'none';     // 'capacitor' | 'web' | 'none'
+
+  // --- Capacitor nativo ---
+  async function tryCapacitor(cb) {
+    try {
+      // O Capacitor injeta window.Capacitor e os plugins via JSBridge
+      if (typeof window.Capacitor === 'undefined') return false;
+      const { Device } = window.Capacitor.Plugins;
+      if (!Device) return false;
+
+      // @capacitor-community/battery-info expõe getBatteryInfo()
+      const { BatteryInfo } = window.Capacitor.Plugins;
+      if (!BatteryInfo) return false;
+
+      const info = await BatteryInfo.getBatteryInfo();
+      cb(Math.round(info.batteryLevel * 100), info.isCharging);
+
+      // Polling a cada 30s (plugin não tem evento nativo estável)
+      _interval = setInterval(async () => {
+        const i = await BatteryInfo.getBatteryInfo();
+        cb(Math.round(i.batteryLevel * 100), i.isCharging);
+      }, 30000);
+
+      _mode = 'capacitor';
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // --- Web Battery API (fallback browser/debug) ---
+  async function tryWebBattery(cb) {
+    try {
+      if (!('getBattery' in navigator)) return false;
+      const battery = await navigator.getBattery();
+
+      const update = () => cb(Math.round(battery.level * 100), battery.charging);
+      battery.addEventListener('levelchange', update);
+      battery.addEventListener('chargingchange', update);
+      update();
+
+      _mode = 'web';
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  return {
+    async init(cb) {
+      _listener = cb;
+      const ok = await tryCapacitor(cb) || await tryWebBattery(cb);
+      return { ok, mode: _mode };
+    },
+    getMode() { return _mode; },
+    destroy() { if (_interval) clearInterval(_interval); }
+  };
+})();
+
+// ========================
+// STATE
+// ========================
+const state = {
+  active: false,
+  currentPct: null,
+  threshold: 20,
+  quietEnabled: true,
+  quietStart: '00:00',
+  quietEnd: '06:00',
+  activeDays: [0,1,2,3,4,5,6],
+  selectedSound: 'beep',
+  volume: 0.8,
+  repeats: 3,
+  customAudioUrl: null,
+  alertFired: false,
+  pendingAlertTime: null,
+  checkInterval: null,
+  audioCtx: null,
+};
+
+// ========================
+// AUDIO
+// ========================
+function getAudioCtx() {
+  if (!state.audioCtx || state.audioCtx.state === 'closed') {
+    state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  if (state.audioCtx.state === 'suspended') state.audioCtx.resume();
+  return state.audioCtx;
+}
+
+function playTone(freq, duration, type = 'sine', gain = 0.8) {
+  const ctx = getAudioCtx();
+  const osc = ctx.createOscillator();
+  const gainNode = ctx.createGain();
+  osc.connect(gainNode);
+  gainNode.connect(ctx.destination);
+  osc.type = type;
+  osc.frequency.value = freq;
+  gainNode.gain.setValueAtTime(gain * state.volume, ctx.currentTime);
+  gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+  osc.start(ctx.currentTime);
+  osc.stop(ctx.currentTime + duration);
+}
+
+const sounds = {
+  beep: () => {
+    playTone(880, 0.15, 'square', 0.6);
+    setTimeout(() => playTone(880, 0.15, 'square', 0.6), 200);
+    setTimeout(() => playTone(1320, 0.3, 'square', 0.7), 400);
+  },
+  alarm: () => {
+    for (let i = 0; i < 6; i++)
+      setTimeout(() => playTone(i % 2 === 0 ? 880 : 660, 0.2, 'sawtooth', 0.5), i * 250);
+  },
+  urgent: () => {
+    for (let i = 0; i < 8; i++)
+      setTimeout(() => playTone(i % 2 === 0 ? 1200 : 800, 0.1, 'square', 0.7), i * 130);
+  },
+  gentle: () => {
+    playTone(523, 0.3, 'sine', 0.5);
+    setTimeout(() => playTone(659, 0.3, 'sine', 0.5), 350);
+    setTimeout(() => playTone(784, 0.5, 'sine', 0.5), 700);
+  },
+};
+
+function playSound() {
+  if (state.customAudioUrl) {
+    const audio = new Audio(state.customAudioUrl);
+    audio.volume = state.volume;
+    audio.play().catch(() => {});
+    return;
+  }
+  const fn = sounds[state.selectedSound] || sounds.beep;
+  let count = 0;
+  const play = () => { fn(); count++; if (count < state.repeats) setTimeout(play, 1800); };
+  play();
+}
+
+// ========================
+// UI
+// ========================
+function updateBatteryUI(pct, charging) {
+  document.getElementById('battPct').textContent = pct != null ? pct + '%' : '--%';
+  document.getElementById('battStatusText').textContent =
+    pct != null ? (charging ? 'A carregar' : 'A descarregar') : 'Sem dados';
+  document.getElementById('chargingTag').classList.toggle('visible', !!charging);
+
+  const bar = document.getElementById('battBar');
+  bar.style.width = (pct || 0) + '%';
+
+  if (pct <= 20) bar.style.background = 'linear-gradient(90deg, #ff3b30, #ff5f57)';
+  else if (pct <= 40) bar.style.background = 'linear-gradient(90deg, #ff9500, #ffd60a)';
+  else bar.style.background = 'linear-gradient(90deg, #ff5f57, #ffd60a, #00e5a0)';
+
+  const pos = Math.min(Math.max(state.threshold, 1), 99);
+  const marker = document.getElementById('thresholdMarker');
+  marker.style.left = pos + '%';
+  marker.setAttribute('data-label', pos + '%');
+}
+
+function updateSourceBadge(mode) {
+  const badge = document.getElementById('sourceBadge');
+  if (mode === 'capacitor') {
+    badge.className = 'source-badge native';
+    badge.textContent = '✓ nativo';
+  } else if (mode === 'web') {
+    badge.className = 'source-badge web';
+    badge.textContent = '⚠ web api';
+  } else {
+    badge.className = '';
+    badge.textContent = '';
+  }
+}
+
+function showAlertBanner(type, title, desc) {
+  const el = document.getElementById('alertBanner');
+  el.className = 'alert-banner show' + (type === 'deferred' ? ' deferred' : '');
+  document.getElementById('alertBannerTitle').textContent = title;
+  document.getElementById('alertBannerDesc').textContent = desc;
+  el.classList.add('alert-flash');
+  setTimeout(() => el.classList.remove('alert-flash'), 2000);
+}
+
+function hideAlertBanner() {
+  document.getElementById('alertBanner').className = 'alert-banner';
+}
+
+function showPendingTag(timeStr) {
+  document.getElementById('pendingAlert').innerHTML =
+    `<div class="pending-tag">⏰ Alerta pendente — dispara às ${timeStr}</div>`;
+}
+
+function clearPendingTag() {
+  document.getElementById('pendingAlert').innerHTML = '';
+}
+
+// ========================
+// QUIET HOURS / DIAS
+// ========================
+function isInQuietHours() {
+  if (!state.quietEnabled) return false;
+  const now = new Date();
+  const cur = now.getHours() * 60 + now.getMinutes();
+  const [sh, sm] = state.quietStart.split(':').map(Number);
+  const [eh, em] = state.quietEnd.split(':').map(Number);
+  const start = sh * 60 + sm, end = eh * 60 + em;
+  return start <= end ? (cur >= start && cur < end) : (cur >= start || cur < end);
+}
+
+function isDayActive() {
+  return state.activeDays.includes(new Date().getDay());
+}
+
+function getQuietEndTime() {
+  const [eh, em] = state.quietEnd.split(':').map(Number);
+  return `${String(eh).padStart(2,'0')}:${String(em).padStart(2,'0')}`;
+}
+
+// ========================
+// CHECK BATTERY
+// ========================
+function checkBattery() {
+  if (!state.active || state.currentPct == null) return;
+  const pct = state.currentPct;
+
+  if (pct > state.threshold) {
+    state.alertFired = false;
+    state.pendingAlertTime = null;
+    hideAlertBanner();
+    clearPendingTag();
+    return;
+  }
+
+  if (state.alertFired) return;
+
+  if (!isDayActive()) {
+    showAlertBanner('deferred', 'Alerta inactivo hoje', 'Este dia não está activado.');
+    return;
+  }
+
+  if (isInQuietHours()) {
+    if (!state.pendingAlertTime) {
+      state.pendingAlertTime = getQuietEndTime();
+      showAlertBanner('deferred', 'Horário silencioso activo', `Alerta adiado para as ${state.pendingAlertTime}.`);
+      showPendingTag(state.pendingAlertTime);
+    }
+  } else {
+    state.alertFired = true;
+    state.pendingAlertTime = null;
+    clearPendingTag();
+    playSound();
+    showAlertBanner('alert', `⚡ Bateria em ${pct}%!`, 'Conecta o carregador agora.');
+
+    // Notificação local via Capacitor (se disponível) ou Web Notifications
+    sendNotification(`Bateria em ${pct}% — conecta o carregador!`);
+  }
+}
+
+// ========================
+// NOTIFICAÇÕES
+// ========================
+async function sendNotification(msg) {
+  // Tenta Capacitor LocalNotifications primeiro
+  try {
+    const { LocalNotifications } = window.Capacitor?.Plugins || {};
+    if (LocalNotifications) {
+      await LocalNotifications.requestPermissions();
+      await LocalNotifications.schedule({
+        notifications: [{
+          title: 'BatteryGuard ⚡',
+          body: msg,
+          id: 1,
+          schedule: { at: new Date(Date.now() + 100) },
+          sound: null,
+          smallIcon: 'ic_stat_icon_config_sample',
+          iconColor: '#00e5a0',
+        }]
+      });
+      return;
+    }
+  } catch (e) {}
+
+  // Fallback: Web Notifications API
+  if ('Notification' in window) {
+    if (Notification.permission === 'default') await Notification.requestPermission();
+    if (Notification.permission === 'granted') {
+      new Notification('BatteryGuard ⚡', { body: msg });
+    }
+  }
+}
+
+// ========================
+// INIT BATERIA
+// ========================
+async function initBattery() {
+  const { ok, mode } = await BatteryBridge.init((pct, charging) => {
+    state.currentPct = pct;
+    updateBatteryUI(pct, charging);
+    if (state.active) checkBattery();
+  });
+
+  updateSourceBadge(mode);
+
+  if (!ok) {
+    document.getElementById('noSupport').style.display = 'block';
+    updateBatteryUI(null, false);
+  }
+}
+
+// ========================
+// MONITOR TOGGLE
+// ========================
+function toggleMonitor() {
+  state.active = !state.active;
+  const btn = document.getElementById('mainBtn');
+  const dot = document.getElementById('statusDot');
+
+  if (state.active) {
+    btn.textContent = '⏹ PARAR MONITORIZAÇÃO';
+    btn.classList.remove('off');
+    dot.classList.add('active');
+    document.getElementById('statusText').textContent = 'activo';
+    state.alertFired = false;
+    state.pendingAlertTime = null;
+    clearPendingTag();
+    hideAlertBanner();
+    checkBattery();
+    state.checkInterval = setInterval(checkBattery, 30000);
+    sendNotification('BatteryGuard activo — a monitorizar a bateria.');
+  } else {
+    btn.textContent = '▶ INICIAR MONITORIZAÇÃO';
+    btn.classList.add('off');
+    dot.classList.remove('active');
+    document.getElementById('statusText').textContent = 'inactivo';
+    clearInterval(state.checkInterval);
+    hideAlertBanner();
+    clearPendingTag();
+  }
+}
+
+// ========================
+// CONTROLOS UI
+// ========================
+function toggleQuiet() {
+  state.quietEnabled = !state.quietEnabled;
+  document.getElementById('quietToggle').classList.toggle('on', state.quietEnabled);
+  document.getElementById('quietTimes').style.opacity = state.quietEnabled ? '1' : '0.4';
+}
+
+document.getElementById('thresholdSlider').addEventListener('input', function () {
+  state.threshold = parseInt(this.value);
+  document.getElementById('thresholdVal').textContent = this.value + '%';
+  const marker = document.getElementById('thresholdMarker');
+  marker.style.left = this.value + '%';
+  marker.setAttribute('data-label', this.value + '%');
+  state.alertFired = false;
+  if (state.active) checkBattery();
+});
+
+document.getElementById('volumeSlider').addEventListener('input', function () {
+  state.volume = this.value / 100;
+  document.getElementById('volumeVal').textContent = this.value + '%';
+});
+
+document.getElementById('repeatSlider').addEventListener('input', function () {
+  state.repeats = parseInt(this.value);
+  document.getElementById('repeatVal').textContent = this.value + '×';
+});
+
+document.getElementById('quietStart').addEventListener('change', function () { state.quietStart = this.value; });
+document.getElementById('quietEnd').addEventListener('change', function () {
+  state.quietEnd = this.value;
+  state.pendingAlertTime = null;
+});
+
+document.getElementById('daysGrid').addEventListener('click', function (e) {
+  const btn = e.target.closest('.day-btn');
+  if (!btn) return;
+  const day = parseInt(btn.dataset.day);
+  const idx = state.activeDays.indexOf(day);
+  if (idx > -1) state.activeDays.splice(idx, 1); else state.activeDays.push(day);
+  btn.classList.toggle('active', state.activeDays.includes(day));
+});
+
+document.getElementById('soundGrid').addEventListener('click', function (e) {
+  const btn = e.target.closest('.sound-btn');
+  if (!btn) return;
+  document.querySelectorAll('.sound-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  state.selectedSound = btn.dataset.sound;
+  state.customAudioUrl = null;
+  document.getElementById('customFileName').textContent = 'Ficheiro personalizado';
+  document.getElementById('customFileLabel').classList.remove('has-file');
+});
+
+function loadCustomSound(input) {
+  const file = input.files[0];
+  if (!file) return;
+  state.customAudioUrl = URL.createObjectURL(file);
+  document.getElementById('customFileName').textContent = file.name;
+  document.getElementById('customFileLabel').classList.add('has-file');
+  document.querySelectorAll('.sound-btn').forEach(b => b.classList.remove('active'));
+}
+
+function testSound() { playSound(); }
+
+// ========================
+// INIT
+// ========================
+initBattery();
+
+// Verifica alertas pendentes a cada minuto
+setInterval(() => {
+  if (!state.active) return;
+  if (state.pendingAlertTime && !isInQuietHours() && isDayActive()) {
+    state.pendingAlertTime = null;
+    clearPendingTag();
+    state.alertFired = true;
+    playSound();
+    showAlertBanner('alert', '⚡ Bateria fraca!', 'Alerta pendente disparado.');
+    sendNotification('Bateria fraca — conecta o carregador!');
+  }
+  checkBattery();
+}, 60000);
+</script>
+</body>
+</html>

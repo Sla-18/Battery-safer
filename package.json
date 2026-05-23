@@ -1,17 +1,10 @@
 {
   "name": "batteryguard",
   "version": "1.0.0",
-  "description": "Monitor de bateria Android com alertas",
-  "scripts": {
-    "build": "echo 'Static HTML - no build needed'",
-    "sync": "npx cap sync android",
-    "open": "npx cap open android"
-  },
   "dependencies": {
     "@capacitor/android": "^5.7.0",
     "@capacitor/core": "^5.7.0",
-    "@capacitor/local-notifications": "^5.0.0",
-    "@capacitor-community/battery-info": "^1.0.0"
+    "@capacitor/local-notifications": "^5.0.0"
   },
   "devDependencies": {
     "@capacitor/cli": "^5.7.0"
